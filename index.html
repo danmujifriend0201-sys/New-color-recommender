@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Suite Pro - AI & 인쇄용 컬러 매니저</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        /* Color input styling */
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen text-slate-800 antialiased p-4 sm:p-6 md:p-8">
+
+    <div class="max-w-5xl w-full mx-auto flex-grow flex flex-col justify-center">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 flex items-center justify-center gap-3">
+                <span class="text-indigo-600"><i data-lucide="printer" class="w-8 h-8 sm:w-10 sm:h-10 inline-block"></i></span>
+                Color Suite Pro <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-bold uppercase tracking-wider">Print & AI Sync</span>
+            </h1>
+            <p class="text-sm sm:text-base text-slate-600 mt-2">Gemini AI 컬러 추천과 함께 실제 종이에 인쇄(CMYK)했을 때의 색 변화 및 왜곡 여부를 즉시 검증합니다.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            <section class="lg:col-span-5 bg-white/80 backdrop-blur-md rounded-2xl p-5 shadow-xl border border-white/50 flex flex-col gap-4">
+                <h2 class="text-base font-semibold text-slate-900 border-b pb-2 flex items-center gap-2">
+                    <i data-lucide="sliders" class="w-5 h-5 text-indigo-500"></i> AI 기준 색상 설정
+                </h2>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                        <i data-lucide="brain-circuit" class="w-3.5 h-3.5 text-indigo-500"></i> Gemini AI 색감 검색
+                    </label>
+                    <div class="relative">
+                        <input type="text" id="colorSearch" placeholder="예: 차분한 가을 보라색, 달콤한 핑크, 어두운 바다" 
+                            class="w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-slate-700 font-medium">
+                        <button id="btnSearch" class="absolute right-2 top-1/2 -translate-y-1/2 text-indigo-600 hover:text-indigo-800 p-1 transition-colors">
+                            <i data-lucide="send" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="relative flex flex-col gap-2">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">색상 다각도 시뮬레이션</span>
+                        <button id="btnToggleSim" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors">
+                            <i data-lucide="eye" class="w-3.5 h-3.5"></i> <span id="simBtnText">실제 인쇄 시뮬레이션 적용</span>
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-1 rounded-xl overflow-hidden shadow-inner border border-slate-200">
+                        <div id="mainPreview" class="h-32 transition-all duration-300 flex flex-col justify-between p-2.5 text-white font-bold" style="background-color: #8A2BE2;">
+                            <span class="text-[9px] bg-black/40 px-1 py-0.5 rounded w-fit uppercase truncate max-w-full">모니터 (RGB)</span>
+                            <span id="contrastText" class="text-[10px] sm:text-xs font-mono drop-shadow-md truncate">#8A2BE2</span>
+                        </div>
+                        <div id="monitorCmykPreview" class="h-32 transition-all duration-300 flex flex-col justify-between p-2.5 text-white font-bold" style="background-color: #832BD6;">
+                            <span class="text-[9px] bg-black/40 px-1 py-0.5 rounded w-fit uppercase truncate max-w-full">모니터 (CMYK)</span>
+                            <span id="monitorCmykContrastText" class="text-[10px] sm:text-xs font-mono drop-shadow-md truncate">#832BD6</span>
+                        </div>
+                        <div id="printPreview" class="h-32 transition-all duration-300 flex flex-col justify-between p-2.5 text-white font-bold" style="background-color: #792BC1;">
+                            <span class="text-[9px] bg-black/40 px-1 py-0.5 rounded w-fit uppercase truncate max-w-full">인쇄물 (CMYK)</span>
+                            <span id="printContrastText" class="text-[10px] sm:text-xs font-mono drop-shadow-md truncate">#792BC1</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="gamutWarningCard" class="hidden p-3 rounded-xl border flex flex-col gap-1 transition-all relative">
+                    <button id="btnDismissGamut" class="absolute right-2 top-2 text-amber-600 hover:text-amber-800 transition-colors" title="안내문 끄기">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                    <div class="flex items-center gap-1.5 text-xs font-bold text-amber-950" id="gamutTitle">
+                        <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600"></i>
+                        <span>인쇄 색역 초과 (Gamut Warning)</span>
+                    </div>
+                    <p class="text-[11px] text-amber-850 pr-6" id="gamutDesc">이 색상은 실제 잉크로 온전히 표현할 수 없습니다. 인쇄 시 칙칙해질 수 있습니다.</p>
+                    <div class="flex flex-wrap gap-1.5 mt-2">
+                        <button id="btnApplySafeColor" class="text-[10px] font-bold py-1 px-2.5 rounded bg-amber-500 hover:bg-amber-600 text-white transition-colors flex items-center gap-1 shadow-sm">
+                            <i data-lucide="check" class="w-3 h-3"></i> 안전색 적용 (<span id="safeColorHex">#000</span>)
+                        </button>
+                        <button id="btnGamutRandom" class="text-[10px] font-bold py-1 px-2.5 rounded bg-indigo-500 hover:bg-indigo-600 text-white transition-colors flex items-center gap-1 shadow-sm">
+                            <i data-lucide="shuffle" class="w-3 h-3"></i> 다른 랜덤 추천
+                        </button>
+                        <button id="btnDismissGamutText" class="text-[10px] font-bold py-1 px-2.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-900 transition-colors flex items-center gap-1">
+                            안내 끄기
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between gap-4 p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Color Picker</span>
+                        <span class="text-xs font-semibold text-slate-700">미세 수동 선택</span>
+                    </div>
+                    <div class="relative w-8 h-8 rounded-full overflow-hidden shadow cursor-pointer border border-slate-200 hover:scale-105 active:scale-95 transition-transform">
+                        <input type="color" id="colorPicker" value="#8a2be2" class="absolute -inset-2 w-12 h-12 cursor-pointer">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2.5">
+                    <button id="btnRandom" class="flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-medium py-2 px-3 rounded-xl shadow transition-all">
+                        <i data-lucide="shuffle" class="w-3.5 h-3.5"></i>
+                        <span>랜덤 추천</span>
+                    </button>
+                    <button id="btnSave" class="flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-medium py-2 px-3 rounded-xl shadow transition-all">
+                        <i data-lucide="bookmark" class="w-3.5 h-3.5"></i>
+                        <span>보관함 저장</span>
+                    </button>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">코드 복사</label>
+                    <div class="grid grid-cols-1 gap-1">
+                        <div class="flex items-center justify-between bg-slate-100 p-1.5 px-3 rounded-lg border border-slate-200">
+                            <span class="text-[10px] font-bold text-slate-500 w-12">HEX</span>
+                            <span id="formatHex" class="font-mono text-xs font-bold text-slate-700">#8A2BE2</span>
+                            <button onclick="copyToClipboard('formatHex')" class="text-indigo-600 hover:text-indigo-800 p-1 hover:bg-slate-200 rounded transition-colors"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button>
+                        </div>
+                        <div class="flex items-center justify-between bg-slate-100 p-1.5 px-3 rounded-lg border border-slate-200">
+                            <span class="text-[10px] font-bold text-slate-500 w-12">CMYK</span>
+                            <span id="formatCmyk" class="font-mono text-xs font-bold text-slate-700">C:39 M:81 Y:0 K:11</span>
+                            <button onclick="copyToClipboard('formatCmyk')" class="text-indigo-600 hover:text-indigo-800 p-1 hover:bg-slate-200 rounded transition-colors"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button>
+                        </div>
+                        <div class="flex items-center justify-between bg-slate-100 p-1.5 px-3 rounded-lg border border-slate-200">
+                            <span class="text-[10px] font-bold text-slate-500 w-12">RGB</span>
+                            <span id="formatRgb" class="font-mono text-xs font-bold text-slate-700">rgb(138, 43, 226)</span>
+                            <button onclick="copyToClipboard('formatRgb')" class="text-indigo-600 hover:text-indigo-800 p-1 hover:bg-slate-200 rounded transition-colors"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="lg:col-span-7 flex flex-col gap-6">
+                
+                <section class="bg-white/80 backdrop-blur-md rounded-2xl p-5 shadow-xl border border-white/50">
+                    <div class="flex items-center justify-between border-b pb-2 mb-4">
+                        <h2 class="text-base font-semibold text-slate-900 flex items-center gap-2">
+                            <i data-lucide="sparkles" class="w-5 h-5 text-indigo-500"></i> 스마트 배색 조합 (5-Color)
+                        </h2>
+                        <select id="harmonySelect" class="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg p-1.5 font-medium cursor-pointer">
+                            <option value="analogous" selected>유사색 배색 (Analogous)</option>
+                            <option value="monochromatic">단색조 배색 (Monochromatic)</option>
+                            <option value="triadic">삼각 배색 (Triadic)</option>
+                            <option value="complementary">보색 배색 (Complementary)</option>
+                            <option value="split">분할 보색 (Split-Comp)</option>
+                        </select>
+                    </div>
+
+                    <div id="paletteContainer" class="grid grid-cols-5 gap-2 h-36 mb-3">
+                        </div>
+                    <p class="text-[11px] text-slate-400 text-center">색상 카드를 직접 클릭하면 해당 색상 정보를 적용하고 복사합니다.</p>
+                </section>
+
+                <section class="bg-white/80 backdrop-blur-md rounded-2xl p-5 shadow-xl border border-white/50">
+                    <h2 class="text-base font-semibold text-slate-900 border-b pb-2 mb-3 flex items-center gap-2">
+                        <i data-lucide="info" class="w-5 h-5 text-amber-500"></i> 실무 인쇄 필독 지식
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-600">
+                        <div class="bg-indigo-50/50 p-2.5 rounded-lg border border-indigo-100">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-1 mb-1"><i data-lucide="book-open" class="w-3.5 h-3.5 text-indigo-500"></i> RGB vs CMYK</h3>
+                            <p class="leading-relaxed">모니터는 빛(RGB)으로 색을 만드나 인쇄기는 잉크(CMYK)를 섞어 색을 표현합니다. 빛보다 잉크의 표현 범위가 좁아 인쇄물은 화면보다 대개 어둡고 탁해집니다.</p>
+                        </div>
+                        <div class="bg-emerald-50/50 p-2.5 rounded-lg border border-emerald-100">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-1 mb-1"><i data-lucide="layers" class="w-3.5 h-3.5 text-emerald-500"></i> 인쇄 용지(Paper)의 차이</h3>
+                            <p class="leading-relaxed">코팅용지(아트지)는 잉크가 겉돌아 선명하게 정착되지만, 비코팅용지(모조지)는 잉크가 종이 속으로 많이 스며들어 시뮬레이션보다 색이 더 가라앉게 출력됩니다.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="bg-white/80 backdrop-blur-md rounded-2xl p-5 shadow-xl border border-white/50">
+                    <div class="flex items-center justify-between border-b pb-2 mb-3">
+                        <h2 class="text-base font-semibold text-slate-900 flex items-center gap-2">
+                            <i data-lucide="folder-heart" class="w-5 h-5 text-indigo-500"></i> 내 보관함
+                        </h2>
+                        <button id="btnClearLibrary" class="text-xs font-semibold text-rose-500 hover:text-rose-700 transition-colors flex items-center gap-1">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> 비우기
+                        </button>
+                    </div>
+
+                    <div id="libraryContainer" class="flex flex-wrap gap-2 max-h-36 overflow-y-auto pr-1">
+                        <div id="libraryEmptyState" class="w-full text-center py-4 text-slate-400 text-xs">
+                            <i data-lucide="inbox" class="w-6 h-6 mx-auto mb-1 text-slate-300"></i>
+                            보관함이 비어 있습니다.
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-sm text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 transform translate-y-24 opacity-0 transition-all duration-300 z-50 pointer-events-none">
+        <span id="toastIconContainer">
+            <i data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>
+        </span>
+        <span id="toastMessage" class="text-sm font-medium">복사되었습니다!</span>
+    </div>
+
+    <footer class="mt-8 text-center text-xs text-slate-400">
+        &copy; 2026 Color Suite Pro. All rights reserved.
+    </footer>
+
+    <script>
+        // ==========================================
+        // 🔑 [MANDATORY] 여기에 사용자의 Gemini API Key를 입력하세요!
+        // ==========================================
+        const apiKey = "AQ.Ab8RN6Jo9Ka5nzyLyv2Nedb67nLF-pmK_Fn66Alwlpi_lPMtbA";
+
+        // 로컬 감성 매칭 사전 (네트워크 오류/CORS 차단 시 비상용 작동)
+        const localColorDictionary = {
+            '보라': '#8A2BE2', '보라색': '#7F00FF', '바이올렛': '#8F00FF', '퍼플': '#800080', '라벤더': '#E6E6FA', '오키드': '#DA70D6', 'purple': '#800080', 'violet': '#8F00FF', 'lavender': '#E6E6FA',
+            '파랑': '#0000FF', '파란색': '#1E90FF', '하늘': '#87CEEB', '하늘색': '#87CEFA', '블루': '#0047AB', '네이비': '#000080', '바다': '#0077BE', '바다색': '#20B2AA', 'blue': '#0000FF', 'sky': '#87CEEB', 'ocean': '#0077BE',
+            '초록': '#008000', '초록색': '#228B22', '그린': '#00FF00', '연두': '#ADFF2F', '연두색': '#9ACD32', '올리브': '#808000', '민트': '#3EB489', 'mint': '#98FF98', 'green': '#008000',
+            '빨강': '#FF0000', '빨간색': '#DC143C', '레드': '#E60000', '핑크': '#FFC0CB', '분홍': '#FFB6C1', '분홍색': '#FF69B4', '장미': '#FF007F', 'red': '#FF0000', 'pink': '#FFC0CB', 'rose': '#FF007F',
+            '노랑': '#FFD700', '노란색': '#FFFF00', '골드': '#DAA520', '옐로우': '#FFEA00', '주황': '#FFA500', '주황색': '#FF8C00', '오렌지': '#FF4500', 'yellow': '#FFFF00', 'orange': '#FFA500',
+            '검정': '#000000', '검은색': '#111111', '하얀색': '#FFFFFF', '하양': '#FAFAFA', '흰색': '#FFFFFF', '회색': '#808080', '그레이': '#A9A9A9', 'white': '#FFFFFF', 'black': '#000000', 'gray': '#808080'
+        };
+
+        // Init Lucide Icons
+        lucide.createIcons();
+
+        // DOM elements
+        const colorPicker = document.getElementById('colorPicker');
+        const colorSearch = document.getElementById('colorSearch');
+        const btnSearch = document.getElementById('btnSearch');
+        const mainPreview = document.getElementById('mainPreview');
+        const monitorCmykPreview = document.getElementById('monitorCmykPreview'); // 추가
+        const printPreview = document.getElementById('printPreview');
+        const contrastText = document.getElementById('contrastText');
+        const monitorCmykContrastText = document.getElementById('monitorCmykContrastText'); // 추가
+        const printContrastText = document.getElementById('printContrastText');
+        const formatHex = document.getElementById('formatHex');
+        const formatCmyk = document.getElementById('formatCmyk');
+        const formatRgb = document.getElementById('formatRgb');
+        const btnRandom = document.getElementById('btnRandom');
+        const btnSave = document.getElementById('btnSave');
+        const btnClearLibrary = document.getElementById('btnClearLibrary');
+        const harmonySelect = document.getElementById('harmonySelect');
+        const paletteContainer = document.getElementById('paletteContainer');
+        const libraryContainer = document.getElementById('libraryContainer');
+        const libraryEmptyState = document.getElementById('libraryEmptyState');
+        const toast = document.getElementById('toast');
+        const toastMessage = document.getElementById('toastMessage');
+        const toastIconContainer = document.getElementById('toastIconContainer');
+        
+        // 프린트 특화 엘리먼트
+        const gamutWarningCard = document.getElementById('gamutWarningCard');
+        const safeColorHex = document.getElementById('safeColorHex');
+        const btnApplySafeColor = document.getElementById('btnApplySafeColor');
+        const btnToggleSim = document.getElementById('btnToggleSim');
+        const simBtnText = document.getElementById('simBtnText');
+
+        // 경고창 내부 버튼 제어 엘리먼트 추가
+        const btnDismissGamut = document.getElementById('btnDismissGamut');
+        const btnDismissGamutText = document.getElementById('btnDismissGamutText');
+        const btnGamutRandom = document.getElementById('btnGamutRandom');
+
+        // State Manager
+        let currentHex = '#8A2BE2';
+        let simulationEnabled = true; // 기본 인쇄 시뮬레이션 적용 여부
+        let savedColors = JSON.parse(localStorage.getItem('savedColors') || '[]');
+        let warningDismissed = false; // 안내 닫기 활성화 플래그
+        let lastCheckedHex = '#8A2BE2'; // 마지막 체크된 색상 정보 저장
+
+        // On Load initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            updateApp(currentHex);
+            renderLibrary();
+        });
+
+        // Color Input Listeners
+        colorPicker.addEventListener('input', (e) => {
+            currentHex = e.target.value;
+            updateApp(currentHex);
+        });
+
+        harmonySelect.addEventListener('change', () => {
+            updateApp(currentHex);
+        });
+
+        btnToggleSim.addEventListener('click', () => {
+            simulationEnabled = !simulationEnabled;
+            if (simulationEnabled) {
+                simBtnText.innerText = "실제 인쇄 시뮬레이션 해제";
+                showToast("🖨️ 인쇄 시뮬레이션을 활성화했습니다.");
+            } else {
+                simBtnText.innerText = "실제 인쇄 시뮬레이션 적용";
+                showToast("🖥️ 오리지널 모니터 색상 매칭을 활성화했습니다.");
+            }
+            updateApp(currentHex);
+        });
+
+        btnApplySafeColor.addEventListener('click', () => {
+            const safeColor = safeColorHex.innerText;
+            currentHex = safeColor;
+            colorPicker.value = safeColor.toLowerCase();
+            updateApp(safeColor);
+            showToast("✅ 인쇄 왜곡이 없는 안전 색상으로 수정했습니다!");
+        });
+
+        // 경고창 전용 안내 끄기(Dismiss) 기능 구현
+        const dismissWarning = () => {
+            warningDismissed = true;
+            gamutWarningCard.classList.add('hidden');
+            showToast("🔇 해당 색상의 인쇄 왜곡 경고 안내를 숨겼습니다.", "alert-triangle");
+        };
+        btnDismissGamut.addEventListener('click', dismissWarning);
+        btnDismissGamutText.addEventListener('click', dismissWarning);
+
+        // 경고창 전용 다른 랜덤 추천 연동
+        btnGamutRandom.addEventListener('click', () => {
+            const randomHex = generateAestheticRandomColor();
+            currentHex = randomHex;
+            colorPicker.value = randomHex;
+            updateApp(randomHex);
+            showToast("🎲 색역 통과를 유도하는 랜덤 추천 컬러입니다.");
+        });
+
+        // 다중 모델 자동 대체(Fallback) 기반 Gemini API 호출 로직
+        async function fetchGeminiColorAI(userQuery, retries = 3, delay = 1000) {
+            const systemPrompt = `You are a professional color psychologist, print designer, and UI expert. 
+Based on the user's query, return a structured JSON matching the requested schema. 
+Provide a high-contrast 'mainColor' (in HEX format with '#') representing the request, and an aesthetic 5-color 'palette' list (also in HEX format) that nicely harmonizes with it.
+The response must be valid JSON only without wrapping inside backticks or markdown blocks.`;
+
+            const payload = {
+                contents: [{
+                    parts: [{ text: `User request: ${userQuery}` }]
+                }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            mainColor: { type: "STRING" },
+                            palette: {
+                                type: "ARRAY",
+                                items: { type: "STRING" }
+                            }
+                        },
+                        required: ["mainColor", "palette"]
+                    }
+                }
+            };
+
+            // 호출을 보장할 수 있는 호환 모델 리스트 구성 (우선순위 순서)
+            const models = ["gemini-2.5-flash-preview-09-2025", "gemini-2.5-flash", "gemini-1.5-flash"];
+            let lastError = null;
+
+            for (let model of models) {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                
+                for (let i = 0; i < retries; i++) {
+                    try {
+                        const response = await fetch(url, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(payload)
+                        });
+
+                        // 404 모델을 찾을 수 없는 응답 시 즉시 상위 반복문에서 다음 모델로 대체 시도
+                        if (response.status === 404) {
+                            throw new Error("MODEL_NOT_FOUND");
+                        }
+
+                        if (!response.ok) {
+                            const errDetails = await response.text();
+                            throw new Error(`HTTP ${response.status}: ${errDetails || response.statusText}`);
+                        }
+
+                        const data = await response.json();
+                        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (!rawText) throw new Error("No response content from Gemini.");
+                        
+                        return JSON.parse(rawText);
+                    } catch (error) {
+                        lastError = error;
+                        
+                        // 현재 모델의 404 에러일 경우 다음 모델로 고속 전환
+                        if (error.message === "MODEL_NOT_FOUND") {
+                            break; 
+                        }
+                        
+                        // 마지막 재시도 도중 실패한 경우 다음 모델 탐색 준비
+                        if (i === retries - 1) {
+                            break; 
+                        }
+                        
+                        // 지수 백오프 대기
+                        await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+                    }
+                }
+            }
+            throw lastError || new Error("All backup models failed to respond.");
+        }
+
+        // 로컬 비상 검색 엔진
+        function handleLocalFallback(query) {
+            const cleanQuery = query.toLowerCase().trim();
+            let foundHex = null;
+
+            if (localColorDictionary[cleanQuery]) {
+                foundHex = localColorDictionary[cleanQuery];
+            } else {
+                for (let key in localColorDictionary) {
+                    if (cleanQuery.includes(key)) {
+                        foundHex = localColorDictionary[key];
+                        break;
+                    }
+                }
+            }
+
+            if (foundHex) {
+                let rgb = hexToRgb(foundHex);
+                let hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+
+                if (cleanQuery.includes('어두운') || cleanQuery.includes('dark') || cleanQuery.includes('딥')) {
+                    hsl.l = Math.max(10, hsl.l - 20);
+                    foundHex = hslToHex(hsl.h, hsl.s, hsl.l);
+                } else if (cleanQuery.includes('밝은') || cleanQuery.includes('light') || cleanQuery.includes('연한') || cleanQuery.includes('파스텔')) {
+                    hsl.l = Math.min(90, hsl.l + 15);
+                    hsl.s = Math.max(30, hsl.s - 10);
+                    foundHex = hslToHex(hsl.h, hsl.s, hsl.l);
+                }
+
+                currentHex = foundHex;
+                colorPicker.value = foundHex.toLowerCase();
+                updateApp(foundHex);
+                showToast(`💡 로컬 색감 사전에서 '${query}'을 연동했습니다.`);
+            } else {
+                let hash = 0;
+                for (let i = 0; i < cleanQuery.length; i++) {
+                    hash = cleanQuery.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                const h = Math.abs(hash) % 360;
+                const generatedHex = hslToHex(h, 75, 55);
+                
+                currentHex = generatedHex;
+                colorPicker.value = generatedHex.toLowerCase();
+                updateApp(generatedHex);
+                showToast(`🔮 키워드 파싱 완료: 고유 색상을 제작했습니다.`);
+            }
+        }
+
+        // Gemini AI 기반 검색 및 매칭
+        async function handleAISearch() {
+            const query = colorSearch.value.trim();
+            if (!query) {
+                showToast("🔍 느낌을 설명하는 키워드를 적어보세요!", "alert-triangle");
+                return;
+            }
+
+            btnSearch.disabled = true;
+            btnSearch.innerHTML = `<i data-lucide="loader" class="w-4 h-4 animate-spin text-indigo-500"></i>`;
+            lucide.createIcons();
+
+            try {
+                const aiResult = await fetchGeminiColorAI(query);
+                
+                if (aiResult && aiResult.mainColor) {
+                    let hexColor = aiResult.mainColor;
+                    if (!hexColor.startsWith('#')) hexColor = '#' + hexColor;
+
+                    currentHex = hexColor;
+                    colorPicker.value = hexColor.toLowerCase();
+                    updateApp(hexColor);
+
+                    if (aiResult.palette && aiResult.palette.length === 5) {
+                        renderAIPalette(aiResult.palette);
+                    }
+
+                    showToast(`✨ Gemini가 추천한 '${query}' 컬러셋을 적용했습니다!`);
+                }
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                let errMsg = error.message || "통신 오류";
+                if (errMsg.includes("HTTP 403") || errMsg.includes("API_KEY_INVALID")) {
+                    errMsg = "잘못된 API Key이거나 권한 제한 상태입니다.";
+                } else if (errMsg.includes("HTTP 404") || error.message === "All backup models failed to respond.") {
+                    errMsg = "요청 가능한 API 모델을 찾을 수 없습니다.";
+                }
+                showToast(`⚠️ API 연결 지연 (${errMsg}) - 로컬 매칭 적용`, "x-circle");
+                handleLocalFallback(query);
+            } finally {
+                btnSearch.disabled = false;
+                btnSearch.innerHTML = `<i data-lucide="send" class="w-4 h-4"></i>`;
+                lucide.createIcons();
+            }
+        }
+
+        btnSearch.addEventListener('click', handleAISearch);
+        colorSearch.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleAISearch();
+        });
+
+        // 🎨 응답받은 고유 컬러 파이프라인 그리기
+        function renderAIPalette(paletteList) {
+            paletteContainer.innerHTML = '';
+            paletteList.forEach((col) => {
+                if (!col.startsWith('#')) col = '#' + col;
+                
+                const card = document.createElement('div');
+                card.className = "group relative rounded-xl overflow-hidden shadow border border-slate-200/60 cursor-pointer hover:scale-[1.03] active:scale-[0.98] flex flex-col justify-end p-2 transition-all duration-200";
+                
+                // 실제 인쇄 시뮬레이션 톤다운 여부 연계
+                const finalColor = simulationEnabled ? simulateCMYK(col) : col;
+                card.style.backgroundColor = finalColor;
+                
+                const label = document.createElement('span');
+                const darkColor = isColorDark(finalColor);
+                label.className = `font-mono text-[9px] sm:text-xs font-bold text-center w-full block rounded py-0.5 shadow-sm truncate ${darkColor ? 'text-white bg-black/20' : 'text-slate-800 bg-white/40'}`;
+                label.innerText = col.toUpperCase();
+                
+                card.appendChild(label);
+                
+                card.addEventListener('click', () => {
+                    const tempInput = document.createElement('input');
+                    tempInput.value = col.toUpperCase();
+                    document.body.appendChild(tempInput);
+                    tempInput.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(tempInput);
+
+                    currentHex = col;
+                    colorPicker.value = col;
+                    updateApp(col);
+
+                    showToast(`🎨 조합 선택 및 복사 완료: ${col.toUpperCase()}`);
+                });
+                
+                paletteContainer.appendChild(card);
+            });
+        }
+
+        // Random Shuffle
+        btnRandom.addEventListener('click', () => {
+            const randomHex = generateAestheticRandomColor();
+            currentHex = randomHex;
+            colorPicker.value = randomHex;
+            updateApp(randomHex);
+            showToast("🎲 새로운 랜덤 컬러를 찾았습니다.");
+        });
+
+        // Library Storage
+        btnSave.addEventListener('click', () => {
+            if (savedColors.includes(currentHex.toUpperCase())) {
+                showToast("이미 보관함에 보관 중인 색상입니다.", "alert-triangle");
+                return;
+            }
+            savedColors.push(currentHex.toUpperCase());
+            localStorage.setItem('savedColors', JSON.stringify(savedColors));
+            renderLibrary();
+            showToast("💾 색상이 보관함에 안전하게 저장되었습니다.");
+        });
+
+        btnClearLibrary.addEventListener('click', () => {
+            savedColors = [];
+            localStorage.setItem('savedColors', JSON.stringify(savedColors));
+            renderLibrary();
+            showToast("🗑️ 보관함이 모두 비워졌습니다.");
+        });
+
+        // 💻 모니터용 CMYK 소프트 프루핑 시뮬레이션 로직 (종이 질감 감쇠를 뺀 순수 디지털 CMYK 한계값 표현)
+        function simulateMonitorCMYK(hex) {
+            const rgb = hexToRgb(hex);
+            let r = rgb.r / 255;
+            let g = rgb.g / 255;
+            let b = rgb.b / 255;
+            
+            let k = 1 - Math.max(r, g, b);
+            let c = k === 1 ? 0 : (1 - r - k) / (1 - k);
+            let m = k === 1 ? 0 : (1 - g - k) / (1 - k);
+            let y = k === 1 ? 0 : (1 - b - k) / (1 - k);
+
+            // 포토샵 등 소프트 프루프에서 흔히 일어나는 디지털 CMYK 색역 제한 시뮬레이션
+            c = c * 0.95;
+            m = m * 0.96;
+            y = y * 0.94;
+
+            const simR = Math.round(255 * (1 - c) * (1 - k));
+            const simG = Math.round(255 * (1 - m) * (1 - k));
+            const simB = Math.round(255 * (1 - y) * (1 - k));
+
+            return rgbToHex(simR, simG, simB);
+        }
+
+        // 🖨️ 핵심 톤 변환 로직 (RGB를 실제 인쇄용 CMYK로 간접 매핑 및 잉크 고유 한계 톤다운 처리)
+        function simulateCMYK(hex) {
+            const rgb = hexToRgb(hex);
+            
+            // CMYK 기본 변환 공식
+            let r = rgb.r / 255;
+            let g = rgb.g / 255;
+            let b = rgb.b / 255;
+            
+            let k = 1 - Math.max(r, g, b);
+            let c = k === 1 ? 0 : (1 - r - k) / (1 - k);
+            let m = k === 1 ? 0 : (1 - g - k) / (1 - k);
+            let y = k === 1 ? 0 : (1 - b - k) / (1 - k);
+
+            // 실제 CMYK 인쇄 환경 보정 (잉크의 반사율 저하 및 채도 왜곡 시뮬레이션)
+            // 인쇄 잉크는 RGB 빛에 비해 생생한 청색(Cyan) 및 녹색, 형광색 계열 표현에 큰 왜곡 발생
+            c = c * 0.90;
+            m = m * 0.92;
+            y = y * 0.88;
+            k = Math.min(1.0, k * 1.05);
+
+            // 보정된 CMYK값을 역으로 RGB로 변환하여 브라우저에 인쇄 예측 톤 시각화
+            const simR = Math.round(255 * (1 - c) * (1 - k));
+            const simG = Math.round(255 * (1 - m) * (1 - k));
+            const simB = Math.round(255 * (1 - y) * (1 - k));
+
+            return rgbToHex(simR, simG, simB);
+        }
+
+        // 인쇄 불가 영역 검출 (Out of Gamut 검출 알고리즘)
+        function checkGamutWarning(hex) {
+            const rgb = hexToRgb(hex);
+            const r = rgb.r;
+            const g = rgb.g;
+            const b = rgb.b;
+
+            // 지나치게 생생하고 형광색에 가까운 RGB는 CMYK 인쇄에서 표현 불가능
+            // R, G, B 채널 중 유독 높은 값이 있거나 지나치게 밝고 채도가 고도로 높을 때 감지
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            const saturation = max === 0 ? 0 : (max - min) / max;
+            const brightness = max / 255;
+
+            // 순수 형광 파랑, 형광 녹색 및 고채도 고밝기 영역 감출
+            if ((saturation > 0.75 && brightness > 0.82) || 
+                (b > 220 && r < 50 && g < 150) || 
+                (g > 220 && r < 50 && b < 150)) {
+                return true;
+            }
+            return false;
+        }
+
+        // 인쇄 불가 시, 가장 인접한 인쇄용 안전 색조 탐색 로직
+        function getNearestPrintSafeColor(hex) {
+            const rgb = hexToRgb(hex);
+            let hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+
+            // 채도와 명도를 CMYK가 안정적으로 표현 가능한 안전 구역(Saturation < 65%, Lightness < 75%)으로 살짝 톤다운 캘리브레이션
+            hsl.s = Math.min(65, hsl.s);
+            hsl.l = Math.min(75, hsl.l);
+
+            return hslToHex(hsl.h, hsl.s, hsl.l);
+        }
+
+        // Color Updating Engine
+        function updateApp(hex) {
+            hex = hex.toUpperCase();
+            
+            // 사용자가 색상을 실제로 변경했다면 안내 숨김 플래그 복구
+            if (hex !== lastCheckedHex) {
+                warningDismissed = false;
+                lastCheckedHex = hex;
+            }
+            
+            // 모니터 색상 뷰
+            mainPreview.style.backgroundColor = hex;
+            contrastText.innerText = hex;
+            
+            // 모니터 CMYK 뷰 (소프트 프루핑 시뮬레이션)
+            const monitorCmykHex = simulateMonitorCMYK(hex);
+            monitorCmykPreview.style.backgroundColor = monitorCmykHex;
+            monitorCmykContrastText.innerText = monitorCmykHex;
+
+            // 인쇄물 색상 뷰 (시뮬레이션 톤다운 처리)
+            const printHex = simulateCMYK(hex);
+            printPreview.style.backgroundColor = printHex;
+            printContrastText.innerText = printHex;
+
+            const isDark = isColorDark(hex);
+            contrastText.className = `text-[10px] sm:text-xs font-mono drop-shadow-md ${isDark ? 'text-white' : 'text-slate-900'}`;
+            monitorCmykContrastText.className = `text-[10px] sm:text-xs font-mono drop-shadow-md ${isColorDark(monitorCmykHex) ? 'text-white' : 'text-slate-900'}`;
+            printContrastText.className = `text-[10px] sm:text-xs font-mono drop-shadow-md ${isColorDark(printHex) ? 'text-white' : 'text-slate-900'}`;
+
+            formatHex.innerText = hex;
+            
+            // CMYK 포맷 출력 (실제 인쇄소 접수용 정보)
+            const rgbVal = hexToRgb(hex);
+            const r_norm = rgbVal.r / 255;
+            const g_norm = rgbVal.g / 255;
+            const b_norm = rgbVal.b / 255;
+            const k = 1 - Math.max(r_norm, g_norm, b_norm);
+            const c = k === 1 ? 0 : (1 - r_norm - k) / (1 - k);
+            const m = k === 1 ? 0 : (1 - g_norm - k) / (1 - k);
+            const y = k === 1 ? 0 : (1 - b_norm - k) / (1 - k);
+
+            formatCmyk.innerText = `C:${Math.round(c*100)} M:${Math.round(m*100)} Y:${Math.round(y*100)} K:${Math.round(k*100)}`;
+            formatRgb.innerText = `rgb(${rgbVal.r}, ${rgbVal.g}, ${rgbVal.b})`;
+
+            // 인쇄 색역초과 경보 및 안내 닫기 플래그 반영 제어
+            const outOfGamut = checkGamutWarning(hex);
+            if (outOfGamut && !warningDismissed) {
+                gamutWarningCard.classList.remove('hidden');
+                gamutWarningCard.className = "p-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-950 flex flex-col gap-1 transition-all relative";
+                const safeColor = getNearestPrintSafeColor(hex);
+                safeColorHex.innerText = safeColor;
+            } else {
+                gamutWarningCard.classList.add('hidden');
+            }
+
+            buildPalette(hex, rgbVal);
+        }
+
+        // Color Math Utility
+        function rgbToHex(r, g, b) {
+            return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+        }
+
+        function hexToRgb(hex) {
+            const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+            hex = hex.replace(shorthandRegex, (m, r, g, b) => r + r + g + g + b + b);
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : { r: 0, g: 0, b: 0 };
+        }
+
+        function rgbToHsl(r, g, b) {
+            r /= 255; g /= 255; b /= 255;
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            let h, s, l = (max + min) / 2;
+
+            if (max === min) {
+                h = s = 0;
+            } else {
+                const d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                switch (max) {
+                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                    case g: h = (b - r) / d + 2; break;
+                    case b: h = (r - g) / d + 4; break;
+                }
+                h /= 6;
+            }
+            return {
+                h: Math.round(h * 360),
+                s: Math.round(s * 100),
+                l: Math.round(l * 100)
+            };
+        }
+
+        function hslToHex(h, s, l) {
+            s /= 100;
+            l /= 100;
+            let c = (1 - Math.abs(2 * l - 1)) * s,
+                x = c * (1 - Math.abs((h / 60) % 2 - 1)),
+                m = l - c / 2,
+                r = 0, g = 0, b = 0;
+
+            if (0 <= h && h < 60) { r = c; g = x; b = 0; }
+            else if (60 <= h && h < 120) { r = x; g = c; b = 0; }
+            else if (120 <= h && h < 180) { r = 0; g = c; b = x; }
+            else if (180 <= h && h < 240) { r = 0; g = x; b = c; }
+            else if (240 <= h && h < 300) { r = x; g = 0; b = c; }
+            else if (300 <= h && h < 360) { r = c; g = 0; b = x; }
+
+            r = Math.round((r + m) * 255);
+            g = Math.round((g + m) * 255);
+            b = Math.round((b + m) * 255);
+
+            return rgbToHex(r, g, b);
+        }
+
+        function isColorDark(hex) {
+            const rgb = hexToRgb(hex);
+            const luma = 0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b;
+            return luma < 128;
+        }
+
+        // Palette generator based on user settings
+        function buildPalette(hex, rgbVal) {
+            const hsl = rgbToHsl(rgbVal.r, rgbVal.g, rgbVal.b);
+            let colors = [];
+            const harmonyType = harmonySelect.value;
+
+            switch (harmonyType) {
+                case 'analogous':
+                    colors = [
+                        hslToHex((hsl.h + 330) % 360, hsl.s, hsl.l),
+                        hslToHex((hsl.h + 345) % 360, hsl.s, hsl.l),
+                        hex,
+                        hslToHex((hsl.h + 15) % 360, hsl.s, hsl.l),
+                        hslToHex((hsl.h + 30) % 360, hsl.s, hsl.l)
+                    ];
+                    break;
+                case 'monochromatic':
+                    colors = [
+                        hslToHex(hsl.h, Math.max(0, hsl.s - 20), Math.min(100, hsl.l + 30)),
+                        hslToHex(hsl.h, Math.max(0, hsl.s - 10), Math.min(100, hsl.l + 15)),
+                        hex,
+                        hslToHex(hsl.h, Math.min(100, hsl.s + 10), Math.max(0, hsl.l - 15)),
+                        hslToHex(hsl.h, Math.min(100, hsl.s + 20), Math.max(0, hsl.l - 30))
+                    ];
+                    break;
+                case 'triadic':
+                    colors = [
+                        hslToHex(hsl.h, hsl.s, Math.min(100, hsl.l + 15)),
+                        hslToHex((hsl.h + 120) % 360, hsl.s, hsl.l),
+                        hex,
+                        hslToHex((hsl.h + 240) % 360, hsl.s, hsl.l),
+                        hslToHex(hsl.h, hsl.s, Math.max(0, hsl.l - 20))
+                    ];
+                    break;
+                case 'complementary':
+                    const compHue = (hsl.h + 180) % 360;
+                    colors = [
+                        hslToHex(hsl.h, hsl.s, Math.min(100, hsl.l + 20)),
+                        hslToHex(hsl.h, hsl.s, Math.max(0, hsl.l - 20)),
+                        hex,
+                        hslToHex(compHue, hsl.s, hsl.l),
+                        hslToHex(compHue, Math.max(0, hsl.s - 15), Math.min(100, hsl.l + 15))
+                    ];
+                    break;
+                case 'split':
+                    colors = [
+                        hslToHex((hsl.h + 150) % 360, hsl.s, hsl.l),
+                        hslToHex((hsl.h + 150) % 360, Math.max(0, hsl.s - 15), Math.min(100, hsl.l + 15)),
+                        hex,
+                        hslToHex((hsl.h + 210) % 360, Math.max(0, hsl.s - 15), Math.min(100, hsl.l + 15)),
+                        hslToHex((hsl.h + 210) % 360, hsl.s, hsl.l)
+                    ];
+                    break;
+            }
+
+            renderAIPalette(colors);
+        }
+
+        function generateAestheticRandomColor() {
+            const h = Math.floor(Math.random() * 360);
+            const s = 65 + Math.floor(Math.random() * 25);
+            const l = 45 + Math.floor(Math.random() * 15);
+            return hslToHex(h, s, l);
+        }
+
+        // Library Storage Renderer
+        function renderLibrary() {
+            if (savedColors.length === 0) {
+                libraryEmptyState.classList.remove('hidden');
+                const savedItems = libraryContainer.querySelectorAll('.library-item');
+                savedItems.forEach(item => item.remove());
+                return;
+            }
+
+            libraryEmptyState.classList.add('hidden');
+            
+            const savedItems = libraryContainer.querySelectorAll('.library-item');
+            savedItems.forEach(item => item.remove());
+
+            savedColors.forEach((color, idx) => {
+                const item = document.createElement('div');
+                item.className = "library-item group flex items-center justify-between bg-slate-50 border border-slate-200/80 rounded-lg p-1.5 pl-3 w-fit gap-3 animate-fade-in transition-all hover:border-indigo-200";
+                
+                const indicator = document.createElement('span');
+                indicator.className = "w-4 h-4 rounded-full border border-slate-300";
+                indicator.style.backgroundColor = color;
+
+                const text = document.createElement('span');
+                text.className = "font-mono text-xs font-semibold text-slate-700 cursor-pointer";
+                text.innerText = color;
+                text.addEventListener('click', () => {
+                    currentHex = color;
+                    colorPicker.value = color.toLowerCase();
+                    updateApp(color);
+                    showToast(`📂 보관함 색상을 적용했습니다.`);
+                });
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = "text-slate-400 hover:text-rose-500 p-1 rounded transition-colors";
+                deleteBtn.innerHTML = `<i data-lucide="x" class="w-3.5 h-3.5"></i>`;
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    savedColors.splice(idx, 1);
+                    localStorage.setItem('savedColors', JSON.stringify(savedColors));
+                    renderLibrary();
+                    showToast("보관함에서 색상이 제거되었습니다.");
+                });
+
+                item.appendChild(indicator);
+                item.appendChild(text);
+                item.appendChild(deleteBtn);
+                libraryContainer.appendChild(item);
+            });
+            lucide.createIcons();
+        }
+
+        // Copy Helper
+        function copyToClipboard(elementId) {
+            const textElement = document.getElementById(elementId);
+            const textToCopy = textElement.innerText;
+
+            const tempInput = document.createElement('input');
+            tempInput.value = textToCopy;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showToast(`📋 복사 완료: ${textToCopy}`);
+                } else {
+                    showToast('복사에 실패했습니다. 수동으로 복사해주세요.', 'x-circle');
+                }
+            } catch (err) {
+                showToast('복사에 실패했습니다. 수동으로 복사해주세요.', 'x-circle');
+            }
+            document.body.removeChild(tempInput);
+        }
+
+        // Global Custom Toast Handler
+        let toastTimeout;
+        function showToast(message, iconName = "check-circle") {
+            toastMessage.innerText = message;
+            
+            let iconColor = "text-emerald-400";
+            if (iconName === "alert-triangle") iconColor = "text-amber-400";
+            if (iconName === "x-circle") iconColor = "text-rose-400";
+
+            toastIconContainer.innerHTML = `<i data-lucide="${iconName}" class="w-5 h-5 ${iconColor}"></i>`;
+            lucide.createIcons();
+
+            toast.classList.remove('translate-y-24', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-24', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
